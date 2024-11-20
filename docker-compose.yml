@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./simple_api  # Context is the directory containing the Dockerfile
+      dockerfile: Dockerfile  # Specify the Dockerfile explicitly
+    container_name: api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./simple_api:/data
+    networks:
+      - student_network
+    healthcheck:
+      test: ["CMD", "curl", "-u", "toto:python", "-X", "GET", "http://localhost:5000/pozos/api/v1.0/get_student_ages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: ["python3", "./student_age.py"]  # Override the command from the Dockerfile
+
+  website:
+    image: php:apache
+    container_name: website
+    restart: unless-stopped
+    environment:
+      - USERNAME=toto
+      - PASSWORD=python
+    ports:
+      - "8080:80"
+    volumes:
+      - ./website:/var/www/html
+    networks:
+      - student_network
+    depends_on:
+      - api
+
+networks:
+  student_network:
+
