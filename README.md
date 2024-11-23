@@ -1,195 +1,362 @@
-# student-list 
-This repo is a simple application to list student with a webserver (PHP) and API (Flask)
+# Student List Application
 
-![project](https://user-images.githubusercontent.com/18481009/84582395-ba230b00-adeb-11ea-9453-22ed1be7e268.jpg)
+This repository contains a simple application to list students with their ages using a web server (PHP) and an API (Flask).
 
+![Project Image](https://user-images.githubusercontent.com/18481009/84582395-ba230b00-adeb-11ea-9453-22ed1be7e268.jpg)
 
 ------------
 
+### Objectives
 
-## Objectives
+The goal of this practice exam is to demonstrate your ability to manage Docker infrastructure. You will be evaluated on the following aspects:
 
-The objectives of this practice exam are to ensure that you are able to manage a docker infrastructure, so you will be evaluated about the following
+### Key Themes:
+- Improving an existing application deployment process
+- Versioning your infrastructure releases
+- Applying best practices when implementing Docker-based infrastructure
+- Implementing Infrastructure as Code (IaC)
 
-### Themes:
+### Context
+  
 
-- improve an existed application deployment process
-- versioning your infrastructure release
-- address best practice when implementing docker infrastructure
-- Infrastructure As Code
+This guide will help you set up a virtual machine (VM) with CentOS 7.6, install Docker, Docker Compose, and deploy a simple API and PHP website using Docker.
 
-## Context
+### Prerequisites
 
+- **Vagrant**: A tool for managing virtual machine environments in a consistent workflow.
+- **VirtualBox**: A free and open-source hosted hypervisor for running virtual machines.
+- **Docker**: A platform to develop, ship, and run applications inside containers.
+- **Docker Compose**: A tool for defining and running multi-container Docker applications.
 
-*POZOS*  is an IT company located in France and develops software for High School.
+## Application deployment steps with docker
 
-The innovation department want to disrupt the existing infrastructure to ensure that
+## 1. Create a Virtual Machine with CentOS 7.6 using Vagrant
 
-it can be scalable, easily deployed with a maximum of automation.
+First, ensure you have both **Vagrant** and **VirtualBox** installed.
 
-POZOS wants you to build a "**POC**" to show how docker can help you and how much this technology is efficient.
+### Vagrantfile Setup
 
-For this POC, POZOS will give you an application and want you to build a "decouple" infrastructure based on "**Docker**".
+The `Vagrantfile` below will configure a virtual machine with CentOS 7.6 and the file [install_docker.sh](https://github.com/diranetafen/cursus-devops/blob/master/vagrant/docker/docker_centos7/install_docker.sh) to install Docker. 
+In total, we'll need to forward 4 ports: 2 for the Pozos application and 2 for the private registry.
 
-Currently, the application is running on a single server with any scalability and any high availability.
+```ruby
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# To enable zsh, please set ENABLE_ZSH env var to "true" before launching vagrant up 
+#   + On Windows => $env:ENABLE_ZSH="true"
+#   + On Linux  => export ENABLE_ZSH="true"
 
-When POZOS needs to deploy a new release, every time some goes wrong.
+Vagrant.configure("2") do |config|
+  config.vm.define "docker" do |docker|
+    docker.vm.box = "eazytrainingfr/centos7"
+    docker.vm.box_version = "1.0"
 
-In conclusion, POZOS needs agility on its software farm.
+    # Forwarded port for pozos app
+    docker.vm.network "forwarded_port", guest: 5000, host: 5000
+    docker.vm.network "forwarded_port", guest: 8080, host: 8080
 
-## Infrastructure
+    # Forwarded port for private registry
+    docker.vm.network "forwarded_port", guest: 8081, host: 8081
+    docker.vm.network "forwarded_port", guest: 8088, host: 8088
 
-For this POC, you will only use one single machine with a docker installed on it.
-
-The build and the deployment will be made on this machine.
-
-POZOS recommends you to use centos7.6 OS because it's the most used in the company.
-
-Please also note that you are authorized to use a virtual machine base on Centos7.6 and not your physical machine.
-
-The security is a very critical aspect of POZOS DSI so please do not disable the firewall or other security mechanisms otherwise please explain your reasons in your delivery.
-
-## Application
-
-
-The application that you will be working on is named "*student_list*", this application is very basic and enables POZOS to show the list of the student with their age.
-
-student_list has two modules:
-
-- the first module is a REST API (with basic authentication needed) who send the desire list of the student based on JSON file
-- The second module is a web app written in HTML + PHP who enable end-user to get a list of students
-
-Your work is to build one container for each module an make them interact with each other
-
-Application source code can be found [here](https://github.com/diranetafen/student-list.git "here")
-
-The files that you must provide (in your delivery) are ***Dockerfile*** and ***docker-compose.yml***  (currently both are empty)
-
-Now it is time to explain you each file's role:
-
-- docker-compose.yml: to launch the application (API and web app)
-- Dockerfile: the file that will be used to build the API image (details will be given)
-- requirements.txt: contains all the packages to be installed to run the application
-- student_age.json: contain student name with age on JSON format
-- student_age.py: contains the source code of the API in python
-- index.php: PHP  page where end-user will be connected to interact with the service to - list students with age. You need to update the following line before running the website container to make ***api_ip_or_name*** and ***port*** fit your deployment
-
-```bash 
- $url = 'http://<api_ip_or_name:port>/pozos/api/v1.0/get_student_ages';
- ```
-
-
-
-## Build and test (7 points)
-
-POZOS will give you information to build the API container
-
-- Base image
-
-To build API image you must use "python:3.8-buster"
-
-- Maintainer
-
-Please don't forget to specify the maintainer information
-
-- Add the source code
-
-You need to copy the source code of the API in the container at the root "/" path
-
-- Prerequisite
-
-The API is using FLASK engine,  you need to install some package 
-```bash
-apt update -y && apt install python-dev python3-dev libsasl2-dev python-dev libldap2-dev libssl-dev -y
+    docker.vm.hostname = "docker"
+    docker.vm.provider "virtualbox" do |v|
+      v.name = "docker"
+      v.memory = 1024
+      v.cpus = 2
+    end
+    docker.vm.provision :shell do |shell|
+      shell.path = "install_docker.sh"
+      shell.env = { 'ENABLE_ZSH' => ENV['ENABLE_ZSH'] }
+    end
+  end
+end
 ```
-Copy the requirements.txt file into the container in the root "/" directory to install the packages needed to start up our application
 
-to launch the installation, use this command
+
+### Running Vagrant
+
+1. Initialize the VM:
+   ```bash
+   vagrant up
+   ```
+2. SSH into the VM:
+   ```bash
+   vagrant ssh
+   ```
+
+
+### Install Docker & Docker Compose
+
+*Once everything has gone according to plan, you can connect to the configured VM.* **_if  Docker and Docker Compose is not installed_**, run the following commands to install :
 
 ```bash
-pip3 install -r /requirements.txt
-```
-- Persistent data (volume)
+# Install Docker
+sudo yum install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
 
-Create data folder at the root "/" where data will be stored and declare it as a volume
-
-You will use this folder to mount student list
-
-- API Port
-
-To interact with this API expose 5000 port
-
-- CMD
-
-When container start, it must run the student_age.py (copied at step 4), so it should be something like
-```bash 
-CMD [ "python3", "./student_age.py" ]
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 ```
 
-Build your image and try to run it (don't forget to mount *student_age.json* file at */data/student_age.json* in the container), check logs and verify that the container is listening and is  ready to answer
+---
 
-Run this command to make sure that the API correctly responding (take a screenshot for delivery purpose)
-NB: Start your container using this specific port to reach it
-Port: 5000
-```bash 
-curl -u toto:python -X GET http://<host IP>:<API exposed port>/pozos/api/v1.0/get_student_ages
+## 2. Clone and Set Up the Project
+ 
+
+###  Clone the project and set-up the index.php file 
+
+1. Clone the repository containing the PHP website and the simple API:
+
+   ```bash
+   git clone https://github.com/diranetafen/student-list/
+   cd student-list
+   ```
+
+2. Update the PHP `index.php` inside the website file to point to the correct API URL by modifying the `url` and `port` variable:
+
+   ```php
+   // In index.php
+   $url = 'http://api:5000/pozos/api/v1.0/get_student_ages';
+   ```
+
+ 
+&nbsp;
+
+
+### **Create Dockerfile for the API**
+
+in the simple_api folder, create a file `Dockerfile` if this is not the case, and format it as follows:
+
+```Dockerfile
+# Dockerfile for the API
+FROM python:3.8-buster
+LABEL maintainer="zakarieh"
+
+# Copy Python script and install dependencies
+COPY student_age.py /
+RUN DEBIAN_FRONTEND=noninteractive apt update -y && apt install python-dev python3-dev libsasl2-dev python-dev libldap2-dev libssl-dev -y
+COPY requirements.txt /requirements.txt
+RUN pip3 install -r /requirements.txt
+
+# Create volume and expose port
+RUN mkdir /data
+VOLUME ["/data"]
+EXPOSE 5000
+
+# Run the Python script
+CMD ["python3", "./student_age.py"]
 ```
 
-**Congratulation! Now you are ready for the next step (docker-compose.yml)**
+&nbsp;
 
-## Infrastructure As Code (5 points)
+### Build and Run the API Container
 
-After testing your API image, you need to put all together and deploy it, using docker-compose.
+1. Go to the folder where the Dockerfile is located and Build the Docker image for the API :
 
-The ***docker-compose.yml*** file will deploy two services :
+   ```bash
+   docker build -t api:0.1 . 
+   ```
 
-- website: the end-user interface with the following characteristics
-   - image: php:apache
-   - environment: you will provide the USERNAME and PASSWORD to enable the web app to access the API through authentication
-   - volumes: to avoid php:apache image run with the default website, we will bind the website given by POZOS to use. You must have something like
-`./website:/var/www/html`
-   - depend on: you need to make sure that the API will start first before the website
-   - port: do not forget to expose the port
-- API: the image builded before should be used with the following specification
-   - image: the name of the image builded previously
-   - volumes: You will mount student_age.json file in /data/student_age.json
-   - port: don't forget to expose the port
-   - networks: don't forget to add specific network for your project
+2. Run the API container:
 
-Delete your previous created container
+   ```bash
+   docker run -d -p 5000:5000 -v ./student_age.json:/data/student_age.json --name api1 api:0.1
+   ```
 
-Run your docker-compose.yml
+3. Verify the API is running by executing:
 
-Finally, reach your website and click on the bouton "List Student"
+   ```bash
+   curl -u toto:python -X GET http://localhost:5000/pozos/api/v1.0/get_student_ages
+   ```
 
-**If the list of the student appears, you are successfully dockerizing the POZOS application! Congratulation (make a screenshot)**
+   Result:
 
-## Docker Registry (4 points)
+   ```json
+   {
+     "student_ages": {
+       "alice": "12", 
+       "bob": "13"
+     }
+   }
+   ```
+    ![Capture d’écran du 2024-11-23 22-08-05](https://github.com/user-attachments/assets/44ac240a-aee6-4c8d-9483-b5137d663b8f)
 
-POZOS need you to deploy a private registry and store the built images
+ 
 
-So you need to deploy :
+&nbsp;
 
-- a docker [registry](https://docs.docker.com/registry/ "registry")
-- a web [interface](https://hub.docker.com/r/joxit/docker-registry-ui/ "interface") to see the pushed image as a container
 
-Or you can use [Portus](http://port.us.org/ "Portus") to run both
+## 3. Set Up Docker Compose 
+ 
 
-Don't forget to push your image on your private registry and show them in your delivery.
+To manage both the API and the website containers, use Docker Compose. Below is the `docker-compose.yml` file:
 
-## Delivery (4 points)
+```yaml
+version: "3.8"
 
-Your delivery must be link of your repository with your name that contain:
-- A README file with your screenshots and explanations.
-- Configuration files used to realize the graded exercise (docker-compose.yml and Dockerfile).
+services:
+  api:
+    build:
+      context: ./simple_api
+      dockerfile: Dockerfile
+    container_name: api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./simple_api:/data
+    networks:
+      - student_network
+    healthcheck:
+      test: ["CMD", "curl", "-u", "toto:python", "-X", "GET", "http://localhost:5000/pozos/api/v1.0/get_student_ages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: ["python3", "./student_age.py"]
 
-Your delivery will be evaluated on:
+  website:
+    image: php:apache
+    container_name: website
+    restart: unless-stopped
+    environment:
+      - USERNAME=toto
+      - PASSWORD=python
+    ports:
+      - "8080:80" # Note that Apache uses port 80 (Apache default), so you need to map it to the port of your choice, here 8080 on the host.
+    volumes:
+      - ./website:/var/www/html
+    networks:
+      - student_network
+    depends_on:
+      api:
+        condition: service_healthy
 
-- Explanations quality
-- Screenshots quality (relevance, visibility)
-- Presentation quality
-- The structure of your github repository
+networks:
+  student_network:
+    driver: bridge
 
-Send your delivery at ***eazytrainingfr@gmail.com*** and we will provide you the link of the solution.
+```
 
-![good luck](https://user-images.githubusercontent.com/18481009/84582398-cad38100-adeb-11ea-95e3-2a9d4c0d5437.gif)
+In these lines in the docker-compose, you can use the image built in the previous steps but i choose to create with the Dockerfile. For example : 
+
+```ruby 
+    build:
+      context: ./simple_api  # We need to specify the context, which is the directory that contains the Dockerfile
+      dockerfile: Dockerfile  #  And mention the Dockerfile here (it's very important)
+```
+
+&nbsp; 
+
+### Start the Application with Docker Compose
+
+1. Start all services using Docker Compose:
+
+   ```bash
+   docker-compose up -d
+   ```
+
+   ![image](https://github.com/user-attachments/assets/739ca01f-fbb3-4e1d-a7e4-5da2fc4776fe)
+
+
+2. The PHP website should now be accessible at `http://localhost:8080`, and it will communicate with the API at `http://localhost:5000`.
+
+   ![Capture d’écran du 2024-11-23 22-20-56](https://github.com/user-attachments/assets/3d2bf9b1-3c34-4c30-aca6-57ac8248163d) ![Capture d’écran du 2024-11-23 22-20-39](https://github.com/user-attachments/assets/dcc215c3-d080-4f95-bb64-56d6082bf24b)
+
+
+&nbsp;
+
+## 4. Private registry  
+
+### create a docker-compose to set-up the private registry
+
+In the docker-compose.yml file below, we define the setup for two services: registry-server (Docker Registry) and registry-ui (UI for Docker Registry). Volumes are used to manage persistent data, configurations, and authentication securely.
+
+```yml
+version: "3.8"
+
+services:
+  # Docker Registry Server - The registry service that stores the Docker images
+  registry-server:
+    image: registry:2.8.2
+    restart: always
+    ports:
+      - "8081:5000"
+    environment:
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: "[http://registry.example.com]"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods: "[HEAD,GET,OPTIONS,DELETE]"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Credentials: "[true]"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers: "[Authorization,Accept,Cache-Control]"
+      REGISTRY_HTTP_HEADERS_Access-Control-Expose-Headers: "[Docker-Content-Digest]"
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - ./registry/data:/var/lib/registry # Data directory
+      - ./config.yml:/etc/docker/registry/config.yml # Mount the config file
+      - ./htpasswd:/etc/docker/registry/htpasswd # Mount the config file
+    container_name: registry-server
+
+    # Docker Registry UI - Frontend web interface for registry
+  registry-ui:
+    image: joxit/docker-registry-ui:main
+    restart: always
+    ports:
+      - "8088:80" # Exposing port 8088 for the UI to be accessible on the host
+    environment:
+      - SINGLE_REGISTRY=true # If true, it assumes only one registry is configured
+      - REGISTRY_TITLE=Docker Registry UI # The title for the UI
+      - DELETE_IMAGES=true # Allows image deletion via UI
+      - SHOW_CONTENT_DIGEST=true # Shows digest of content in the UI
+      - NGINX_PROXY_PASS_URL=http://registry-server:8081 # The URL of the registry server
+      - SHOW_CATALOG_NB_TAGS=true # Show number of tags in the catalog
+      - CATALOG_MIN_BRANCHES=1 # Minimum branches for catalog display
+      - CATALOG_MAX_BRANCHES=1 # Maximum branches for catalog display
+      - TAGLIST_PAGE_SIZE=100 # Number of tags per page in the tag list
+      - REGISTRY_SECURED=false # If true, enforces secure HTTPS access
+      - CATALOG_ELEMENTS_LIMIT=1000 # Limit for catalog elements
+    container_name: registry-ui # Name for the container
+
+```
+ 
+***Volumes in the Docker Registry Setup***
+
+- **`./registry/data:/var/lib/registry`**  
+  This volume stores the Docker images and data to persistent.  
+
+- **`./config.yml:/etc/docker/registry/config.yml`**  
+  Mounts the custom configuration file for the Docker Registry. This file contains registry-specific settings like of storage registry-server, security, and access controls.
+
+- **`./htpasswd:/etc/docker/registry/htpasswd`**  
+   This file contains  usernames and bcrypt-encrypted passwords to authenticate users who need access to the registry. You can create a new one from this website https://bcrypt-generator.com/
+
+&nbsp; 
+
+### Start the Application with Docker Compose
+
+1. Run the two containers using Docker Compose:
+
+   ```bash
+   docker-compose up -d
+   ```
+   
+   ![Capture d’écran du 2024-11-23 23-11-47](https://github.com/user-attachments/assets/f98e9b82-b636-4608-abad-d972e157c04f)
+
+2. Tag and push the existing images :
+
+`docker push ip:8088/php:apache`
+
+`docker tag id_image ip:8088/php:apache`
+
+3. Visualation of Registry UI 
+ 
+ ![Capture d’écran du 2024-11-23 23-18-32](https://github.com/user-attachments/assets/77102bda-ba96-462f-9cc6-849b387a9db4)
+
+
+## **Conclusion**
+
+This project was an excellent opportunity to apply Docker in a real-world deployment scenario. By containerizing a student listing application and creating a private Docker registry, I was able to enhance my knowledge of Docker Compose, container management, and infrastructure best practices. The challenges in setting up multiple services, managing dependencies, and versioning the infrastructure through Docker have significantly improved my understanding of Docker-based application deployment.
+
+**Author**
+
+[@zakarieh](https://github.com/zakarieh)
