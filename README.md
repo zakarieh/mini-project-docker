@@ -88,14 +88,25 @@ end
 
 ### Install Docker & Docker Compose
 
-*Once everything has gone according to plan, you can connect to the configured VM.* **_if  Docker and Docker Compose is not installed_**, run the following commands to install :
+*Once everything has gone according to plan, you can connect to the configured VM.* **_if  Docker and Docker Compose is not installed_**, run the following commands to install.
 
-```bash
-# Install Docker
-sudo yum install -y docker
-sudo systemctl start docker
-sudo systemctl enable docker
+- For docker, use the script from https://get.docker.com/
+```sh
+# 1. download the script
+curl -fsSL https://get.docker.com -o install-docker.sh
 
+# 2. verify the script's content
+cat install-docker.sh
+
+3. run the script with --dry-run to verify the steps it executes
+sh install-docker.sh --dry-run
+
+# 4. run the script either as root, or using sudo to perform the installation.
+sudo sh install-docker.sh
+```
+
+- Docker compose 
+```bash 
 # Install Docker Compose
 sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
