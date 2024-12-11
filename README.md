@@ -355,9 +355,9 @@ services:
 
 2. Tag and push the existing images :
 
-`docker push ip:8088/php:apache`
-
 `docker tag id_image ip:8088/php:apache`
+
+`docker push ip:8088/php:apache`
 
 3. Visualation of Registry UI 
  
